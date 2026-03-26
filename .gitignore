@@ -1,0 +1,19 @@
+# Data files (too large)
+data/
+*.wav
+*.pkl
+*.pt
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Results
+experiments/results/
+*.png
