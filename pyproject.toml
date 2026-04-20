@@ -1,0 +1,26 @@
+[project]
+name = "snn-stdp"
+version = "0.1.0"
+description = "Spiking neural network with STDP"
+authors = [
+    {name = "Sabina Alieva",email = "sabinaalieva966@gmail.com"}
+]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = "3.10.*"
+dependencies = [
+    "torch (>=2.0.0,<2.5)",
+    "numpy (>=1.24,<1.27)",
+    "scipy (>=1.10,<1.14)",
+    "matplotlib (>=3.7,<3.10)",
+    "librosa (>=0.10,<0.11)",
+    "sounddevice (>=0.5.5,<0.6.0)",
+    "soundfile (>=0.13.1,<0.14.0)",
+    "scikit-learn (<1.8)",
+    "tonic (>=1.6.0,<2.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
