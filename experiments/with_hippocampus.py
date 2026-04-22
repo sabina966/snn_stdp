@@ -47,9 +47,9 @@ def main():
     
     # 2. Параметры
     n_input = 700
-    n_hidden = 200  
+    n_hidden = 500  
     n_classes = 20
-    temporal_window = 50  
+    temporal_window = 90  
     
     # 3. Создание сетей
     print("\n2. Создание SNN с гиппокампом...")
@@ -60,8 +60,8 @@ def main():
         n_hidden=n_hidden,
         neuron_params={'tau_m': 20.0, 'v_th': -50.0, 'dt': 1.0, 'tau_adapt': 50.0},
         stdp_params={
-            'a_plus': 0.01, 
-            'a_minus': 0.012,
+            'a_plus': 0.02, 
+            'a_minus': 0.025,
             'tau_plus': 20.0,      
             'tau_minus': 20.0,     
             'w_min': 0.0,          
@@ -73,28 +73,28 @@ def main():
     population_size = temporal_window * n_hidden
     hippocampus = Hippocampus(
         input_size=population_size,
-        hidden_size=64,
-        output_size=32
+        hidden_size=128,
+        output_size=64
     )
     
     # Классификатор
-    classifier = torch.nn.Linear(32, n_classes)
+    classifier = torch.nn.Linear(64, n_classes)
     
     print(f"   Слуховая кора: {n_input} → {n_hidden} нейронов")
     print(f"   Популяционный вектор: {population_size}")
-    print(f"   Гиппокамп: 64 → 32")
+    print(f"   Гиппокамп: 128 → 64")
     
     # 4. Обучение
     print("\n3. Обучение...")
     
-    sample_count = 500
+    sample_count = 2000
     optimizer = torch.optim.Adam(
         list(hippocampus.parameters()) + list(classifier.parameters()),
         lr=0.001
     )
     criterion = torch.nn.CrossEntropyLoss()
     
-    for epoch in range(5):
+    for epoch in range(6):
         total_loss = 0
         correct = 0
         

@@ -91,8 +91,8 @@ class UnsupervisedSNN(nn.Module):
         # Default STDP parameters if not provided    
         if stdp_params is None:
             stdp_params = {
-                'a_plus': 0.005, # learning rate for potentiation
-                'a_minus': 0.006, # learning rate for depression
+                'a_plus': 0.1, # learning rate for potentiation
+                'a_minus': 0.09, # learning rate for depression
                 'tau_plus': 20.0, 
                 'tau_minus': 20.0,
                 'w_min': 0.0, # minimum synaptic weight
