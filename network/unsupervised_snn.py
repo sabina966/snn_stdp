@@ -156,52 +156,55 @@ class UnsupervisedSNN(nn.Module):
         # Base learning rates
         self.base_a_plus = self.a_plus
         self.base_a_minus = self.a_minus
+            
+    def stdp_update(self, pre_spikes, post_spikes, homeo_factor, dt=1.0):
+        """STDP learning rule with homeostatic modulation"""
         
-    def stdp_update(self, pre_spikes, post_spikes, dt=1.0):
-        """STDP learning rule with pre and post traces"""
-
-        time_steps = pre_spikes.shape[0] # number of time steps in the spike trains
-        n_pre = pre_spikes.shape[1] # number of pre-synaptic neurons (input channels)
-        n_post = post_spikes.shape[1] # number of post-synaptic neurons (hidden layer)
+        # Пераканаемся, што dt — гэта тэнзар
+        if not isinstance(dt, torch.Tensor):
+            dt = torch.tensor(dt, dtype=torch.float32, device=pre_spikes.device)
         
-        pre_trace = torch.zeros(n_pre) # trace of pre-synaptic spikes (for LTP)
-        post_trace = torch.zeros(n_post) # trace of post-synaptic spikes (for LTD)
+        time_steps = pre_spikes.shape[0]
+        n_pre = pre_spikes.shape[1]
+        n_post = post_spikes.shape[1]
         
-        delta_w = torch.zeros(n_pre, n_post) # accumulates weight changes
+        pre_trace = torch.zeros(n_pre, device=pre_spikes.device)
+        post_trace = torch.zeros(n_post, device=post_spikes.device)
+        delta_w = torch.zeros(n_pre, n_post, device=pre_spikes.device)
         
-        # Exponential decay of traces (How fast spike traces fade over time)
-        decay_plus = torch.exp(torch.tensor(-dt) / self.tau_plus)
-        decay_minus = torch.exp(torch.tensor(-dt) / self.tau_minus)
+        decay_plus = torch.exp(-dt / self.tau_plus)
+        decay_minus = torch.exp(-dt / self.tau_minus)
         
-        # Loop through each time step and update traces and weights according to STDP rules
         for t in range(time_steps):
             pre_spike_t = pre_spikes[t]
             post_spike_t = post_spikes[t]
             
-            # Update traces ( Exponential decay + new spikes)
             pre_trace = pre_trace * decay_plus + pre_spike_t
             post_trace = post_trace * decay_minus + post_spike_t
             
-            # STDP updates with homeostatic modulation
-            for i in range(n_pre):
-                if pre_spike_t[i] > 0:
+            # Патэнцыяцыя
+            pre_mask = pre_spike_t > 0
+            if pre_mask.any():
+                for i in torch.where(pre_mask)[0]:
                     delta_w[i, :] += self.a_plus * post_trace * homeo_factor
             
-            for j in range(n_post):
-                if post_spike_t[j] > 0:
+            # Дэпрэсія
+            post_mask = post_spike_t > 0
+            if post_mask.any():
+                for j in torch.where(post_mask)[0]:
                     delta_w[:, j] -= self.a_minus * pre_trace / (homeo_factor[j] + 1e-8)
         
-        # Apply updates
         new_weights = self.weights + delta_w * dt
         new_weights = torch.clamp(new_weights, self.w_min, self.w_max)
-        
         return new_weights
-    
     def update_homeostasis(self, spikes, dt=1.0):
         """
         Updates homeostatic factor based on spike rate
         Formula: running_rate = decay * running_rate + (1-decay) * instantaneous_rate
         """
+        if not isinstance(dt, torch.Tensor):
+            dt = torch.tensor(dt, dtype=torch.float32, device=spikes.device)
+
         time_steps = spikes.shape[0]
         
         # Spike count per neuron

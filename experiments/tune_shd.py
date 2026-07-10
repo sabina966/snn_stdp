@@ -44,7 +44,7 @@ def quick_test(params, sample_count=500):
                 'w_max': 1.0
             },
             homeo_params={
-                'target_rate': 10.0,
+                'target_rate': params['target_rate'],
                 'tau_homeo': 5000.0,
                 'homeo_strength': 0.02,
                 'min_homeo_factor': 0.5,
@@ -89,10 +89,8 @@ def quick_test(params, sample_count=500):
 
 # ----- СПІС ПАРАМЕТРАЎ ДЛЯ ТЭСТАВАННЯ -----
 configs = [
-    {'n_hidden': 200, 'a_plus': 0.01, 'a_minus': 0.012},
-    {'n_hidden': 200, 'a_plus': 0.02, 'a_minus': 0.025},
-    {'n_hidden': 400, 'a_plus': 0.02, 'a_minus': 0.025},
-    {'n_hidden': 300, 'a_plus': 0.015, 'a_minus': 0.02},
+    {'n_hidden': 200, 'a_plus': 0.01, 'a_minus': 0.012, 'target_rate': 12.5},
+
 ]
 
 # ----- ЗАПУСК -----
