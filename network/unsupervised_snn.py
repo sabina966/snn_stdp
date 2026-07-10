@@ -72,9 +72,10 @@ class UnsupervisedSNN(nn.Module):
     - STDP for weight learning
     - Lateral inhibition for competition
     - Winner-take-all classification
+    - Homeostatic control of neural activity
     """
     
-    def __init__(self, n_input, n_hidden, neuron_params=None, stdp_params=None):
+    def __init__(self, n_input, n_hidden, neuron_params=None, stdp_params=None, homeo_params=None):
         super().__init__()
         
         # Default neuron parameters if not provided
@@ -98,7 +99,7 @@ class UnsupervisedSNN(nn.Module):
                 'w_min': 0.0, # minimum synaptic weight
                 'w_max': 1.0  # maximum synaptic weight
             }
-        
+                
         # One LIF neuron for each hidden unit
         self.n_hidden = n_hidden
         self.neurons = LIFNeuron(**neuron_params)
@@ -131,6 +132,30 @@ class UnsupervisedSNN(nn.Module):
         # For tracking learning
         self.weight_history = []
         self.spike_history = []
+
+        # Homeostasis parameters
+        if homeo_params is None:
+            homeo_params = {
+                'target_rate': 10.0, # мэтавая частата (Гц)
+                'tau_homeo': 5000.0,  # пастаянная часу (мс)
+                'homeo_strength': 0.02, # сіла ўплыву
+                'min_homeo_factor': 0.5,  # мінімальны множнік
+                'max_homeo_factor': 2.0 # максімальны множнік
+            }
+
+        self.target_rate = homeo_params['target_rate']
+        self.tau_homeo = homeo_params['tau_homeo']
+        self.homeo_strength = homeo_params['homeo_strength']
+        self.min_homeo_factor = homeo_params['min_homeo_factor']
+        self.max_homeo_factor = homeo_params['max_homeo_factor']
+
+        # For tracking firing rate of each neuron
+        self.register_buffer('running_rate', torch.zeros(n_hidden))
+        self.register_buffer('homeo_factor', torch.ones(n_hidden))
+
+        # Base learning rates
+        self.base_a_plus = self.a_plus
+        self.base_a_minus = self.a_minus
         
     def stdp_update(self, pre_spikes, post_spikes, dt=1.0):
         """STDP learning rule with pre and post traces"""
@@ -157,16 +182,14 @@ class UnsupervisedSNN(nn.Module):
             pre_trace = pre_trace * decay_plus + pre_spike_t
             post_trace = post_trace * decay_minus + post_spike_t
             
-            # STDP updates
-            # Potentiation: pre before post (when pre-synaptic spike occurs before post-synaptic spike, we strengthen the synapse)
+            # STDP updates with homeostatic modulation
             for i in range(n_pre):
                 if pre_spike_t[i] > 0:
-                    delta_w[i, :] += self.a_plus * post_trace
+                    delta_w[i, :] += self.a_plus * post_trace * homeo_factor
             
-            # Depression: post before pre (when post-synaptic spike occurs before pre-synaptic spike, we weaken the synapse)
             for j in range(n_post):
                 if post_spike_t[j] > 0:
-                    delta_w[:, j] -= self.a_minus * pre_trace
+                    delta_w[:, j] -= self.a_minus * pre_trace / (homeo_factor[j] + 1e-8)
         
         # Apply updates
         new_weights = self.weights + delta_w * dt
@@ -174,18 +197,34 @@ class UnsupervisedSNN(nn.Module):
         
         return new_weights
     
+    def update_homeostasis(self, spikes, dt=1.0):
+        """
+        Updates homeostatic factor based on spike rate
+        Formula: running_rate = decay * running_rate + (1-decay) * instantaneous_rate
+        """
+        time_steps = spikes.shape[0]
+        
+        # Spike count per neuron
+        spike_counts = spikes.sum(dim=0)
+        
+        # Instantaneous rate (spikes per second)
+        instantaneous_rate = spike_counts / (time_steps * dt / 1000.0)
+        
+        # Exponential moving average (ν̃ᵢ)
+        decay = torch.exp(-dt / self.tau_homeo)
+        self.running_rate = decay * self.running_rate + (1 - decay) * instantaneous_rate
+        
+        # Calculate homeostatic factor
+        # If rate > target -> factor < 1 (reduce learning)
+        # If rate < target -> factor > 1 (increase learning)
+        rate_error = self.target_rate - self.running_rate
+        self.homeo_factor = 1.0 + self.homeo_strength * rate_error / (self.target_rate + 1e-8)
+        self.homeo_factor = torch.clamp(self.homeo_factor, self.min_homeo_factor, self.max_homeo_factor)
+        
     def forward(self, input_spikes, record=False):
         """
         Forward pass (Process input spikes through the network, 
-        apply lateral inhibition, and update weights with STDP)
-
-        Args:
-            input_spikes: [time_steps, n_input] binary spikes
-            record: whether to record spike history
-            
-        Returns:
-            hidden_spikes: [time_steps, n_hidden] spike trains
-            winner: index of winning neuron (most active)
+        apply lateral inhibition, and update weights with STDP, and apply homeostasis)
         """
         time_steps = input_spikes.shape[0] # number of time steps in the input spike train
         n_input = input_spikes.shape[1] # number of input channels (should match self.weights.shape[0])
@@ -221,8 +260,10 @@ class UnsupervisedSNN(nn.Module):
         
         # STDP learning (online, after each step)
         with torch.no_grad(): 
-            new_weights = self.stdp_update(input_spikes, hidden_spikes) 
+            new_weights = self.stdp_update(input_spikes, hidden_spikes, self.homeo_factor) 
             self.weights.data = new_weights
+            # Update homeostasis after processing the sample
+            self.update_homeostasis(hidden_spikes, dt=self.neurons.dt)
             
         # Record for analysis
         if record and len(self.weight_history) < 100:

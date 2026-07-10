@@ -34,7 +34,7 @@ def convert_events_to_spikes(events, time_steps=200, sensor_size=700):
 
 def main():
     print("=" * 60)
-    print("SNN С ГИППОКАМПОМ")
+    print("SNN С ГИППОКАМПОМ И ГОМЕОСТАЗОМ НА SHD ДАТАСЕТЕ")
     print("=" * 60)
     
     # 1. Загрузка данных
@@ -50,9 +50,11 @@ def main():
     n_hidden = 500  
     n_classes = 20
     temporal_window = 90  
-    
+    sample_count = 500
+    epochs = 3
+
     # 3. Создание сетей
-    print("\n2. Создание SNN с гиппокампом...")
+    print("\n2. Создание SNN с гиппокампом и гомеостазисом...")
     
     # Слуховая кора
     auditory_cortex = UnsupervisedSNN(
@@ -66,7 +68,14 @@ def main():
             'tau_minus': 20.0,     
             'w_min': 0.0,          
             'w_max': 1.0             
-            }
+            },
+        homeo_params={
+            'target_rate': 10.0,
+            'tau_homeo': 5000.0,
+            'homeo_strength': 0.02,
+            'min_homeo_factor': 0.5,
+            'max_homeo_factor': 2.0
+        }
     )
     
     # Гиппокамп
@@ -83,18 +92,18 @@ def main():
     print(f"   Слуховая кора: {n_input} → {n_hidden} нейронов")
     print(f"   Популяционный вектор: {population_size}")
     print(f"   Гиппокамп: 128 → 64")
+    print(f"   Гомеостаз: target_rate=10 Гц, tau_homeo=5000 мс")
     
     # 4. Обучение
     print("\n3. Обучение...")
     
-    sample_count = 2000
     optimizer = torch.optim.Adam(
         list(hippocampus.parameters()) + list(classifier.parameters()),
         lr=0.001
     )
     criterion = torch.nn.CrossEntropyLoss()
     
-    for epoch in range(6):
+    for epoch in range(epochs):
         total_loss = 0
         correct = 0
         
@@ -139,7 +148,7 @@ def main():
     # 5. Тестирование
     print("\n4. Тестирование...")
     correct = 0
-    total = 100
+    total = 200
     
     for idx in range(total):
         events, true_label = test_dataset[idx]
@@ -162,7 +171,9 @@ def main():
         _, predicted = torch.max(logits, 0)
         if predicted.item() == true_label:
             correct += 1
-    
+        if (idx + 1) % 50 == 0:
+            print(f"   Тест: {idx+1}/{total}, Точность: {100*correct/(idx+1):.1f}%")
+            
     accuracy = 100 * correct / total
     print(f"\n{'='*60}")
     print(f"ИТОГОВАЯ ТОЧНОСТЬ: {accuracy:.2f}%")
