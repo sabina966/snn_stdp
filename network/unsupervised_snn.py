@@ -305,3 +305,64 @@ class UnsupervisedSNN(nn.Module):
         adapt = adapt * (1 - dt / tau_adapt) + spike * 10.0
         
         return spike, v, adapt
+
+
+class HierarchicalUnsupervisedSNN(nn.Module):
+    """Hierarchical two-layer unsupervised SNN.
+
+    Layer 1 extracts simple patterns from the raw input stream.
+    Layer 2 combines layer-1 features into more complex patterns.
+    """
+    def __init__(
+        self,
+        n_input,
+        n_hidden_1,
+        n_hidden_2,
+        neuron_params=None,
+        stdp_params_1=None,
+        stdp_params_2=None,
+        homeo_params_1=None,
+        homeo_params_2=None,
+    ):
+        super().__init__()
+
+        if stdp_params_1 is None:
+            stdp_params_1 = {
+                'a_plus': 0.01,
+                'a_minus': 0.012,
+                'tau_plus': 20.0,
+                'tau_minus': 20.0,
+                'w_min': 0.0,
+                'w_max': 1.0,
+            }
+
+        if stdp_params_2 is None:
+            stdp_params_2 = {
+                'a_plus': 0.005,
+                'a_minus': 0.006,
+                'tau_plus': 20.0,
+                'tau_minus': 20.0,
+                'w_min': 0.0,
+                'w_max': 1.0,
+            }
+
+        self.layer1 = UnsupervisedSNN(
+            n_input=n_input,
+            n_hidden=n_hidden_1,
+            neuron_params=neuron_params,
+            stdp_params=stdp_params_1,
+            homeo_params=homeo_params_1,
+        )
+
+        self.layer2 = UnsupervisedSNN(
+            n_input=n_hidden_1,
+            n_hidden=n_hidden_2,
+            neuron_params=neuron_params,
+            stdp_params=stdp_params_2,
+            homeo_params=homeo_params_2,
+        )
+
+    def forward(self, input_spikes, record=False):
+        hidden_spikes_1, winner_1 = self.layer1.forward(input_spikes, record=record)
+        hidden_spikes_2, winner_2 = self.layer2.forward(hidden_spikes_1, record=record)
+        return hidden_spikes_1, hidden_spikes_2, winner_2

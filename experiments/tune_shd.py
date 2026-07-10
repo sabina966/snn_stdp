@@ -8,7 +8,7 @@ import torch
 import tonic
 import matplotlib.pyplot as plt
 import numpy as np
-from network.unsupervised_snn import UnsupervisedSNN
+from network.unsupervised_snn import HierarchicalUnsupervisedSNN
 
 # ----- КАНВЕРТАЦЫЯ -----
 def convert_events_to_spikes(events, time_steps=200, sensor_size=700):
@@ -30,20 +30,36 @@ def quick_test(params, sample_count=500):
         train_dataset = tonic.datasets.SHD(save_to='./data', train=True)
         test_dataset = tonic.datasets.SHD(save_to='./data', train=False)
 
-        # Стварэнне сеткі
-        network = UnsupervisedSNN(
+        # Стварэнне двухслойнай сеткі
+        network = HierarchicalUnsupervisedSNN(
             n_input=700,
-            n_hidden=params['n_hidden'],
+            n_hidden_1=params['n_hidden_1'],
+            n_hidden_2=params['n_hidden_2'],
             neuron_params={'tau_m': 20.0, 'v_th': -50.0, 'dt': 1.0, 'tau_adapt': 100.0},
-            stdp_params={
-                'a_plus': params['a_plus'],
-                'a_minus': params['a_minus'],
+            stdp_params_1={
+                'a_plus': params['a_plus_1'],
+                'a_minus': params['a_minus_1'],
                 'tau_plus': 20.0,
                 'tau_minus': 20.0,
                 'w_min': 0.0,
                 'w_max': 1.0
             },
-            homeo_params={
+            stdp_params_2={
+                'a_plus': params['a_plus_2'],
+                'a_minus': params['a_minus_2'],
+                'tau_plus': 20.0,
+                'tau_minus': 20.0,
+                'w_min': 0.0,
+                'w_max': 1.0
+            },
+            homeo_params_1={
+                'target_rate': params['target_rate'],
+                'tau_homeo': 5000.0,
+                'homeo_strength': 0.02,
+                'min_homeo_factor': 0.5,
+                'max_homeo_factor': 2.0
+            },
+            homeo_params_2={
                 'target_rate': params['target_rate'],
                 'tau_homeo': 5000.0,
                 'homeo_strength': 0.02,
@@ -53,16 +69,16 @@ def quick_test(params, sample_count=500):
         )
 
         # Навучанне
-        neuron_responses = {i: [] for i in range(params['n_hidden'])}
+        neuron_responses = {i: [] for i in range(params['n_hidden_2'])}
         for idx in range(sample_count):
             events, label = train_dataset[idx]
             spikes = convert_events_to_spikes(events)
-            _, winner = network.forward(spikes)
+            _, _, winner = network.forward(spikes)
             neuron_responses[winner.item()].append(label)
 
         # Мапінг нейронаў
         neuron_to_digit = {}
-        for neuron in range(params['n_hidden']):
+        for neuron in range(params['n_hidden_2']):
             responses = neuron_responses[neuron]
             if responses:
                 digit = max(set(responses), key=responses.count)
@@ -74,7 +90,7 @@ def quick_test(params, sample_count=500):
         for idx in range(total):
             events, true_label = test_dataset[idx]
             spikes = convert_events_to_spikes(events)
-            _, winner = network.forward(spikes, record=False)
+            _, _, winner = network.forward(spikes, record=False)
             predicted = neuron_to_digit.get(winner.item(), -1)
             if predicted == true_label:
                 correct += 1
@@ -89,8 +105,15 @@ def quick_test(params, sample_count=500):
 
 # ----- СПІС ПАРАМЕТРАЎ ДЛЯ ТЭСТАВАННЯ -----
 configs = [
-    {'n_hidden': 200, 'a_plus': 0.01, 'a_minus': 0.012, 'target_rate': 12.5},
-
+    {
+        'n_hidden_1': 200,
+        'n_hidden_2': 150,
+        'a_plus_1': 0.01,
+        'a_minus_1': 0.012,
+        'a_plus_2': 0.01,
+        'a_minus_2': 0.006,
+        'target_rate': 12.5,
+    },
 ]
 
 # ----- ЗАПУСК -----
