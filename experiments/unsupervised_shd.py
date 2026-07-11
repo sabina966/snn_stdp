@@ -44,16 +44,24 @@ def main():
         stdp_params_1={
             'a_plus': 0.01,
             'a_minus': 0.012,
+            'a3_plus': 0.005,
+            'a3_minus': 0.006,
             'tau_plus': 20.0,
             'tau_minus': 20.0,
+            'tau_pre_slow': 100.0,
+            'tau_post_slow': 100.0,
             'w_min': 0.0,
             'w_max': 1.0,
         },
         stdp_params_2={
             'a_plus': 0.005,
             'a_minus': 0.006,
+            'a3_plus': 0.0025,
+            'a3_minus': 0.003,
             'tau_plus': 20.0,
             'tau_minus': 20.0,
+            'tau_pre_slow': 100.0,
+            'tau_post_slow': 100.0,
             'w_min': 0.0,
             'w_max': 1.0,
         },
@@ -73,7 +81,7 @@ def main():
         },
     )
     print("   Input: 700 → Layer1: 200 → Layer2: 100")
-    print("   Learning: STDP + lateral inhibition in both layers")
+    print("   Learning: triplet STDP + lateral inhibition in both layers")
 
     print("\n3. Unsupervised STDP training...")
     print("   Presenting samples, no labels given...")

@@ -126,6 +126,11 @@ class UnsupervisedSNN(nn.Module):
         self.a_minus = stdp_params['a_minus']
         self.tau_plus = stdp_params['tau_plus']
         self.tau_minus = stdp_params['tau_minus']
+        # Triplet STDP additional params (optional)
+        self.a3_plus = stdp_params.get('a3_plus', self.a_plus * 0.5)
+        self.a3_minus = stdp_params.get('a3_minus', self.a_minus * 0.5)
+        self.tau_pre_slow = stdp_params.get('tau_pre_slow', 100.0)
+        self.tau_post_slow = stdp_params.get('tau_post_slow', 100.0)
         self.w_min = stdp_params['w_min']
         self.w_max = stdp_params['w_max']
         
@@ -164,36 +169,49 @@ class UnsupervisedSNN(nn.Module):
         if not isinstance(dt, torch.Tensor):
             dt = torch.tensor(dt, dtype=torch.float32, device=pre_spikes.device)
         
+        # Triplet STDP implementation (Pfister & Gerstner style)
         time_steps = pre_spikes.shape[0]
         n_pre = pre_spikes.shape[1]
         n_post = post_spikes.shape[1]
-        
+
+        # Fast traces
         pre_trace = torch.zeros(n_pre, device=pre_spikes.device)
         post_trace = torch.zeros(n_post, device=post_spikes.device)
+        # Slow traces for triplet interactions
+        pre_trace_slow = torch.zeros(n_pre, device=pre_spikes.device)
+        post_trace_slow = torch.zeros(n_post, device=pre_spikes.device)
+
         delta_w = torch.zeros(n_pre, n_post, device=pre_spikes.device)
-        
-        decay_plus = torch.exp(-dt / self.tau_plus)
-        decay_minus = torch.exp(-dt / self.tau_minus)
-        
+
+        decay_pre = torch.exp(-dt / self.tau_plus)
+        decay_post = torch.exp(-dt / self.tau_minus)
+        decay_pre_slow = torch.exp(-dt / self.tau_pre_slow)
+        decay_post_slow = torch.exp(-dt / self.tau_post_slow)
+
         for t in range(time_steps):
             pre_spike_t = pre_spikes[t]
             post_spike_t = post_spikes[t]
-            
-            pre_trace = pre_trace * decay_plus + pre_spike_t
-            post_trace = post_trace * decay_minus + post_spike_t
-            
-            # Патэнцыяцыя
+
+            # Update traces
+            pre_trace = pre_trace * decay_pre + pre_spike_t
+            post_trace = post_trace * decay_post + post_spike_t
+            pre_trace_slow = pre_trace_slow * decay_pre_slow + pre_spike_t
+            post_trace_slow = post_trace_slow * decay_post_slow + post_spike_t
+
+            # Potentiation on pre spike: pair + triplet term from slow post trace
             pre_mask = pre_spike_t > 0
             if pre_mask.any():
+                pot_term = (self.a_plus * post_trace + self.a3_plus * post_trace_slow) * homeo_factor
                 for i in torch.where(pre_mask)[0]:
-                    delta_w[i, :] += self.a_plus * post_trace * homeo_factor
-            
-            # Дэпрэсія
+                    delta_w[i, :] += pot_term
+
+            # Depression on post spike: pair + triplet term from slow pre trace
             post_mask = post_spike_t > 0
             if post_mask.any():
                 for j in torch.where(post_mask)[0]:
-                    delta_w[:, j] -= self.a_minus * pre_trace / (homeo_factor[j] + 1e-8)
-        
+                    dep = (self.a_minus * pre_trace + self.a3_minus * pre_trace_slow) / (homeo_factor[j] + 1e-8)
+                    delta_w[:, j] -= dep
+
         new_weights = self.weights + delta_w * dt
         new_weights = torch.clamp(new_weights, self.w_min, self.w_max)
         return new_weights

@@ -39,6 +39,10 @@ def quick_test(params, sample_count=500):
             stdp_params_1={
                 'a_plus': params['a_plus_1'],
                 'a_minus': params['a_minus_1'],
+                'a3_plus': params.get('a3_plus_1', params['a_plus_1'] * 0.5),
+                'a3_minus': params.get('a3_minus_1', params['a_minus_1'] * 0.5),
+                'tau_pre_slow': params.get('tau_pre_slow_1', 100.0),
+                'tau_post_slow': params.get('tau_post_slow_1', 100.0),
                 'tau_plus': 20.0,
                 'tau_minus': 20.0,
                 'w_min': 0.0,
@@ -47,6 +51,10 @@ def quick_test(params, sample_count=500):
             stdp_params_2={
                 'a_plus': params['a_plus_2'],
                 'a_minus': params['a_minus_2'],
+                'a3_plus': params.get('a3_plus_2', params['a_plus_2'] * 0.5),
+                'a3_minus': params.get('a3_minus_2', params['a_minus_2'] * 0.5),
+                'tau_pre_slow': params.get('tau_pre_slow_2', 100.0),
+                'tau_post_slow': params.get('tau_post_slow_2', 100.0),
                 'tau_plus': 20.0,
                 'tau_minus': 20.0,
                 'w_min': 0.0,
@@ -108,11 +116,21 @@ configs = [
     {
         'n_hidden_1': 200,
         'n_hidden_2': 150,
-        'a_plus_1': 0.01,
-        'a_minus_1': 0.012,
-        'a_plus_2': 0.01,
-        'a_minus_2': 0.006,
-        'target_rate': 12.5,
+        'a_plus_1': 0.09,
+        'a_minus_1': 0.019,
+        'a_plus_2': 0.02,
+        'a_minus_2': 0.06,
+        # Triplet params for layer1
+        'a3_plus_1': 0.3,
+        'a3_minus_1': 0.2,
+        'tau_pre_slow_1': 200.0,
+        'tau_post_slow_1': 200.0,
+        # Triplet params for layer2
+        'a3_plus_2': 0.2,
+        'a3_minus_2': 0.03,
+        'tau_pre_slow_2': 200.0,
+        'tau_post_slow_2': 200.0,
+        'target_rate': 13.5,
     },
 ]
 
