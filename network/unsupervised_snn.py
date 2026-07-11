@@ -3,13 +3,29 @@ import torch.nn as nn #neural network modules
 import torch.nn.functional as F
 import numpy as np
 
+
+class SurrogateSpike(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, input, sigma):
+        ctx.save_for_backward(input)
+        ctx.sigma = sigma
+        return (input >= 0).float()
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        input, = ctx.saved_tensors
+        sigma = ctx.sigma
+        grad_input = grad_output * torch.clamp(1.0 - input.abs() / sigma, min=0.0) / sigma
+        return grad_input, None
+
 class LIFNeuron(nn.Module):
     """Leaky Integrate-and-Fire neuron with adaptation
         that inherits from PyTorch's nn.Module
     """
     
     def __init__(self, tau_m=20.0, v_rest=-65.0, v_th=-50.0, 
-                 v_reset=-65.0, dt=1.0, r=1.0, tau_adapt=100.0):
+                 v_reset=-65.0, dt=1.0, r=1.0, tau_adapt=100.0,
+                 surrogate_sigma=1.0):
         super().__init__()
         self.tau_m = tau_m # membrane time constant (how fast voltage leaks)
         self.v_rest = v_rest # resting potential (default -65 mV)
@@ -18,6 +34,7 @@ class LIFNeuron(nn.Module):
         self.dt = dt # simulation time step (1 ms)
         self.r = r # membrane resistance
         self.tau_adapt = tau_adapt # adaptation time constant (how fast threshold recovers)
+        self.surrogate_sigma = surrogate_sigma # surrogate gradient scale
         
     def forward(self, current, v_init=None, adapt_init=None):
         """ Simulate LIF neuron dynamics over time given input current."""
@@ -50,7 +67,7 @@ class LIFNeuron(nn.Module):
             v = v + dv * self.dt # Euler integration step
             
             # Spike detection
-            spike = (v >= v_th_effective).float() # Returns 1 if voltage exceeds threshold, 0 otherwise
+            spike = SurrogateSpike.apply(v - v_th_effective, self.surrogate_sigma)
             
             # Reset
             v = v * (1 - spike) + self.v_reset * spike # If spike, reset voltage; otherwise keep it
@@ -110,7 +127,7 @@ class UnsupervisedSNN(nn.Module):
         # and n_hidden is the number of neurons in the hidden layer (e.g. 100).
         self.weights = nn.Parameter(
             torch.randn(n_input, n_hidden) * 0.1,
-            requires_grad=False # means no backpropagation
+            requires_grad=True # allow surrogate-gradient training
         )
     
         
@@ -242,7 +259,7 @@ class UnsupervisedSNN(nn.Module):
         self.homeo_factor = 1.0 + self.homeo_strength * rate_error / (self.target_rate + 1e-8)
         self.homeo_factor = torch.clamp(self.homeo_factor, self.min_homeo_factor, self.max_homeo_factor)
         
-    def forward(self, input_spikes, record=False):
+    def forward(self, input_spikes, record=False, stdp=True):
         """
         Forward pass (Process input spikes through the network, 
         apply lateral inhibition, and update weights with STDP, and apply homeostasis)
@@ -251,7 +268,7 @@ class UnsupervisedSNN(nn.Module):
         n_input = input_spikes.shape[1] # number of input channels (should match self.weights.shape[0])
         
         # Compute input currents
-        currents = torch.zeros(time_steps, self.n_hidden) # initialize current tensor for each time step and hidden neuron
+        currents = torch.zeros(time_steps, self.n_hidden, device=input_spikes.device) # initialize current tensor for each time step and hidden neuron
         for t in range(time_steps): # for each time step, calculate the input current to hidden neurons by multiplying input spikes with synaptic weights
             currents[t] = input_spikes[t] @ self.weights # matrix multiplication: [n_input] @ [n_input, n_hidden] → [n_hidden]
         
@@ -260,9 +277,9 @@ class UnsupervisedSNN(nn.Module):
         voltages = [] # list to store voltage traces at each time step
         adaptations = [] # list to store adaptation traces at each time step
         
-        v = torch.zeros(self.n_hidden) # initial voltage for hidden neurons
-        adapt = torch.zeros(self.n_hidden) # initial adaptation for hidden neurons
-        last_spikes = torch.zeros(self.n_hidden) # to keep track of which neurons spiked in the previous time step for lateral inhibition
+        v = torch.zeros(self.n_hidden, device=input_spikes.device) # initial voltage for hidden neurons
+        adapt = torch.zeros(self.n_hidden, device=input_spikes.device) # initial adaptation for hidden neurons
+        last_spikes = torch.zeros(self.n_hidden, device=input_spikes.device) # to keep track of which neurons spiked in the previous time step for lateral inhibition
         
         for t in range(time_steps):
             # Lateral inhibition: previous spikes inhibit other neurons
@@ -279,12 +296,13 @@ class UnsupervisedSNN(nn.Module):
         
         hidden_spikes = torch.stack(hidden_spikes) # Convert list of spikes to tensor [time_steps, n_hidden]
         
-        # STDP learning (online, after each step)
-        with torch.no_grad(): 
-            new_weights = self.stdp_update(input_spikes, hidden_spikes, self.homeo_factor) 
-            self.weights.data = new_weights
-            # Update homeostasis after processing the sample
-            self.update_homeostasis(hidden_spikes, dt=self.neurons.dt)
+        if stdp:
+            # STDP learning (online, after each step)
+            with torch.no_grad():
+                new_weights = self.stdp_update(input_spikes, hidden_spikes, self.homeo_factor)
+                self.weights.data = new_weights
+                # Update homeostasis after processing the sample
+                self.update_homeostasis(hidden_spikes, dt=self.neurons.dt)
             
         # Record for analysis
         if record and len(self.weight_history) < 100:
@@ -313,8 +331,8 @@ class UnsupervisedSNN(nn.Module):
         dv = (-(v - v_rest) + current) / tau_m
         v = v + dv * dt
         
-        # Spike detection
-        spike = (v >= v_th_effective).float()
+        # Spike detection with surrogate gradient support
+        spike = SurrogateSpike.apply(v - v_th_effective, self.neurons.surrogate_sigma)
         
         # Reset
         v = v * (1 - spike) + v_reset * spike
@@ -336,6 +354,7 @@ class HierarchicalUnsupervisedSNN(nn.Module):
         n_input,
         n_hidden_1,
         n_hidden_2,
+        n_classes=None,
         neuron_params=None,
         stdp_params_1=None,
         stdp_params_2=None,
@@ -380,7 +399,17 @@ class HierarchicalUnsupervisedSNN(nn.Module):
             homeo_params=homeo_params_2,
         )
 
-    def forward(self, input_spikes, record=False):
-        hidden_spikes_1, winner_1 = self.layer1.forward(input_spikes, record=record)
-        hidden_spikes_2, winner_2 = self.layer2.forward(hidden_spikes_1, record=record)
+        self.classifier = None
+        if n_classes is not None:
+            self.classifier = nn.Linear(n_hidden_2, n_classes)
+
+    def forward(self, input_spikes, record=False, stdp=True, return_logits=False):
+        hidden_spikes_1, winner_1 = self.layer1.forward(input_spikes, record=record, stdp=stdp)
+        hidden_spikes_2, winner_2 = self.layer2.forward(hidden_spikes_1, record=record, stdp=stdp)
+        if return_logits:
+            if self.classifier is None:
+                raise ValueError('Classifier not initialized. Pass n_classes when constructing the network.')
+            spike_counts = hidden_spikes_2.sum(dim=0)
+            logits = self.classifier(spike_counts)
+            return hidden_spikes_1, hidden_spikes_2, winner_2, logits
         return hidden_spikes_1, hidden_spikes_2, winner_2

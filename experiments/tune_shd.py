@@ -30,11 +30,12 @@ def quick_test(params, sample_count=500):
         train_dataset = tonic.datasets.SHD(save_to='./data', train=True)
         test_dataset = tonic.datasets.SHD(save_to='./data', train=False)
 
-        # Стварэнне двухслойнай сеткі
+        # Стварэнне двухслойнай сеткі з галавой-класіфікатарам (для суррага́тнага градыента)
         network = HierarchicalUnsupervisedSNN(
             n_input=700,
             n_hidden_1=params['n_hidden_1'],
             n_hidden_2=params['n_hidden_2'],
+            n_classes=20,
             neuron_params={'tau_m': 20.0, 'v_th': -50.0, 'dt': 1.0, 'tau_adapt': 100.0},
             stdp_params_1={
                 'a_plus': params['a_plus_1'],
@@ -76,35 +77,44 @@ def quick_test(params, sample_count=500):
             }
         )
 
-        # Навучанне
+        # Навучанне: першая фаза — бесперагляднае STDP
         neuron_responses = {i: [] for i in range(params['n_hidden_2'])}
         for idx in range(sample_count):
             events, label = train_dataset[idx]
             spikes = convert_events_to_spikes(events)
-            _, _, winner = network.forward(spikes)
+            _, _, winner = network.forward(spikes, stdp=True)
             neuron_responses[winner.item()].append(label)
 
-        # Мапінг нейронаў
-        neuron_to_digit = {}
-        for neuron in range(params['n_hidden_2']):
-            responses = neuron_responses[neuron]
-            if responses:
-                digit = max(set(responses), key=responses.count)
-                neuron_to_digit[neuron] = digit
+        # Короткая supervised фаза з суррага́тным градыентам: 3 эпохі па ~200 крокаў
+        optimizer = torch.optim.Adam(network.parameters(), lr=1e-3)
+        criterion = torch.nn.CrossEntropyLoss()
+        sup_steps = min(200, len(train_dataset))
+        sup_epochs = 3
+        for epoch in range(sup_epochs):
+            for idx in range(sup_steps):
+                events, label = train_dataset[idx]
+                spikes = convert_events_to_spikes(events)
+                # атрымліваем logits, выключаючы STDP падчас supervised крокаў
+                hidden1, hidden2, winner, logits = network.forward(spikes, stdp=False, return_logits=True)
+                loss = criterion(logits.unsqueeze(0), torch.tensor([label], dtype=torch.long))
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+            print(f"   Supervised epoch {epoch+1}/{sup_epochs} completed")
 
-        # Тэставанне
+        # Тэставанне (supervised eval)
         correct = 0
-        total = 200
+        total = min(200, len(test_dataset))
         for idx in range(total):
             events, true_label = test_dataset[idx]
             spikes = convert_events_to_spikes(events)
-            _, _, winner = network.forward(spikes, record=False)
-            predicted = neuron_to_digit.get(winner.item(), -1)
-            if predicted == true_label:
+            hidden1, hidden2, winner, logits = network.forward(spikes, stdp=False, return_logits=True)
+            _, predicted = torch.max(logits, 0)
+            if predicted.item() == true_label:
                 correct += 1
 
         accuracy = 100 * correct / total
-        print(f"Result: {accuracy:.2f}%")
+        print(f"Result (supervised eval): {accuracy:.2f}%")
         return accuracy
 
     except Exception as e:
