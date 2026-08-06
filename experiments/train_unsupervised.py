@@ -5,7 +5,7 @@ import numpy as np
 import sys
 
 sys.path.insert(0, 'D:/Sabina/Projects/snn_stdp')
-from network.unsupervised_snn import HierarchicalUnsupervisedSNN
+from legacy.unsupervised_snn import HierarchicalUnsupervisedSNN
 
 
 def convert_events_to_spikes(events, time_steps=200, sensor_size=(700, 1, 1)):

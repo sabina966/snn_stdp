@@ -1,0 +1,13 @@
+{
+    "epochs": 30,
+    "final_train_loss": 2.357733325397267,
+    "final_test_loss": 2.247429614335718,
+    "final_train_accuracy": 0.19994747899159665,
+    "final_test_accuracy": 0.23400821596244128,
+    "best_test_accuracy": 0.23664906103286384,
+    "best_epoch": 27,
+    "max_layer1_rate": 0.17800949963868834,
+    "max_layer2_rate": 0.11814758143588608,
+    "final_layer1_rate": 0.17607096901126937,
+    "final_layer2_rate": 0.08767653797187057
+}

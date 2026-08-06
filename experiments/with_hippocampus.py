@@ -14,7 +14,7 @@ sys.path.insert(0, 'D:/Sabina/Projects/snn_stdp')
 import torch
 import torch.utils.data as data
 import tonic
-from network.unsupervised_snn import UnsupervisedSNN
+from legacy.unsupervised_snn import UnsupervisedSNN
 from network.hippocampus import Hippocampus
 
 def convert_events_to_spikes(events, time_steps=200, sensor_size=700):

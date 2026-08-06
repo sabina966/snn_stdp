@@ -8,7 +8,7 @@ import torch
 import tonic
 import matplotlib.pyplot as plt
 import numpy as np
-from network.unsupervised_snn import HierarchicalUnsupervisedSNN
+from legacy.unsupervised_snn import HierarchicalUnsupervisedSNN
 
 # ----- КАНВЕРТАЦЫЯ -----
 def convert_events_to_spikes(events, time_steps=200, sensor_size=700):

@@ -182,6 +182,12 @@ class UnsupervisedSNN(nn.Module):
     def stdp_update(self, pre_spikes, post_spikes, homeo_factor, dt=1.0):
         """STDP learning rule with homeostatic modulation"""
         
+        # Accept optional singleton batch dimension: [T, 1, N] -> [T, N]
+        if pre_spikes.dim() == 3 and pre_spikes.shape[1] == 1:
+            pre_spikes = pre_spikes.squeeze(1)
+        if post_spikes.dim() == 3 and post_spikes.shape[1] == 1:
+            post_spikes = post_spikes.squeeze(1)
+
         # Пераканаемся, што dt — гэта тэнзар
         if not isinstance(dt, torch.Tensor):
             dt = torch.tensor(dt, dtype=torch.float32, device=pre_spikes.device)
@@ -264,6 +270,10 @@ class UnsupervisedSNN(nn.Module):
         Forward pass (Process input spikes through the network, 
         apply lateral inhibition, and update weights with STDP, and apply homeostasis)
         """
+        # Accept optional singleton batch dimension: [T, 1, N] -> [T, N]
+        if input_spikes.dim() == 3 and input_spikes.shape[1] == 1:
+            input_spikes = input_spikes.squeeze(1)
+
         time_steps = input_spikes.shape[0] # number of time steps in the input spike train
         n_input = input_spikes.shape[1] # number of input channels (should match self.weights.shape[0])
         
@@ -399,17 +409,27 @@ class HierarchicalUnsupervisedSNN(nn.Module):
             homeo_params=homeo_params_2,
         )
 
+        # --- КЛАСІФІКАТАР З BATCHNORM ---
         self.classifier = None
         if n_classes is not None:
-            self.classifier = nn.Linear(n_hidden_2, n_classes)
+            self.classifier = nn.Sequential(
+                nn.Linear(n_hidden_2, 64),
+                nn.LayerNorm(64),
+                nn.ReLU(),
+                nn.Linear(64, n_classes)
+            )
 
     def forward(self, input_spikes, record=False, stdp=True, return_logits=False):
         hidden_spikes_1, winner_1 = self.layer1.forward(input_spikes, record=record, stdp=stdp)
         hidden_spikes_2, winner_2 = self.layer2.forward(hidden_spikes_1, record=record, stdp=stdp)
+        
         if return_logits:
             if self.classifier is None:
                 raise ValueError('Classifier not initialized. Pass n_classes when constructing the network.')
             spike_counts = hidden_spikes_2.sum(dim=0)
+            spike_counts = spike_counts.unsqueeze(0)  # make batch dimension for BatchNorm1d
             logits = self.classifier(spike_counts)
+            logits = logits.squeeze(0)
             return hidden_spikes_1, hidden_spikes_2, winner_2, logits
+        
         return hidden_spikes_1, hidden_spikes_2, winner_2
