@@ -478,17 +478,17 @@ def plot_accuracy(
 
     epochs = range(
         1,
-        len(history["train_acc"]) + 1,
+        len(history["train_accuracy"]) + 1,
     )
 
     train = [
         100 * x
-        for x in history["train_acc"]
+        for x in history["train_accuracy"]
     ]
 
     test = [
         100 * x
-        for x in history["test_acc"]
+        for x in history["test_accuracy"]
     ]
 
     plot_metric(

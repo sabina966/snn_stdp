@@ -1,0 +1,26 @@
+{
+    "checkpoint": "results/stdp/20260810_181938/stdp_model.pt",
+    "n_samples": 2264,
+    "layer1": {
+        "raw": {
+            "nearest_centroid": 0.21911764705882353,
+            "logistic_regression": 0.41323529411764703
+        },
+        "normalized": {
+            "nearest_centroid": 0.18529411764705883,
+            "logistic_regression": 0.1514705882352941
+        },
+        "logistic_difference": -0.2617647058823529
+    },
+    "layer2": {
+        "raw": {
+            "nearest_centroid": 0.2323529411764706,
+            "logistic_regression": 0.22647058823529412
+        },
+        "normalized": {
+            "nearest_centroid": 0.06764705882352941,
+            "logistic_regression": 0.039705882352941174
+        },
+        "logistic_difference": -0.18676470588235294
+    }
+}

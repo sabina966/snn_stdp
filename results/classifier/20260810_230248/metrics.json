@@ -1,0 +1,10 @@
+{
+    "final_train_loss": 2.6836890113768828,
+    "final_train_accuracy": 0.12677783227072095,
+    "final_test_loss": 2.551373103482142,
+    "final_test_accuracy": 0.21643109540636044,
+    "best_test_accuracy": 0.21643109540636044,
+    "best_epoch": 30,
+    "best_model": "best_model.pt",
+    "best_predictions": "best_predictions.pt"
+}

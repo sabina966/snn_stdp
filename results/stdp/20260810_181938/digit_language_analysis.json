@@ -1,0 +1,28 @@
+{
+    "checkpoint": "results/stdp/20260810_181938/stdp_model.pt",
+    "n_samples": 2264,
+    "language": {
+        "chance_baseline": 0.5,
+        "layer1_full": 0.5647058823529412,
+        "layer2_full": 0.5161764705882353,
+        "layer1_population": 0.525,
+        "layer2_population": 0.4985294117647059
+    },
+    "digit": {
+        "chance_baseline": 0.1,
+        "layer1_full": 0.3897058823529412,
+        "layer2_full": 0.27794117647058825,
+        "layer1_population": 0.23529411764705882,
+        "layer2_population": 0.2529411764705882
+    },
+    "digit_by_language": {
+        "english": {
+            "layer1": 0.6018518518518519,
+            "layer2": 0.31790123456790126
+        },
+        "german": {
+            "layer1": 0.5168539325842697,
+            "layer2": 0.3707865168539326
+        }
+    }
+}

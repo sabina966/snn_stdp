@@ -1,0 +1,12 @@
+{
+    "layer1": {
+        "below_min": 0,
+        "above_max": 0,
+        "valid": true
+    },
+    "layer2": {
+        "below_min": 0,
+        "above_max": 0,
+        "valid": true
+    }
+}

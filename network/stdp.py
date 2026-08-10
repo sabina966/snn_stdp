@@ -1,13 +1,12 @@
 """
 Spike-Timing-Dependent Plasticity (STDP)
 
-Learning rules are separated from neural dynamics.
+Pure Pair STDP.
 
-Supported:
-- Pair STDP
-- Triplet STDP
-- Homeostatic modulation
-- Weight clipping
+pre before post  -> potentiation (LTP)
+post before pre  -> depression (LTD)
+
+Weights are clipped to biological bounds.
 """
 
 import torch
@@ -15,35 +14,15 @@ import torch.nn as nn
 
 
 class STDP(nn.Module):
-    """
-    STDP learning rule.
-
-    Weight update:
-
-    pre before post:
-        potentiation (+)
-
-    post before pre:
-        depression (-)
-
-    """
 
     def __init__(
         self,
-        a_plus=0.01,
-        a_minus=0.012,
+        a_plus=0.001,
+        a_minus=0.0012,
         tau_plus=20.0,
         tau_minus=20.0,
         w_min=0.0,
-        w_max=1.0,
-
-        # Triplet STDP
-        triplet=False,
-        a3_plus=None,
-        a3_minus=None,
-        tau_pre_slow=100.0,
-        tau_post_slow=100.0,
-
+        w_max=0.5,
     ):
         super().__init__()
 
@@ -56,246 +35,182 @@ class STDP(nn.Module):
         self.w_min = w_min
         self.w_max = w_max
 
-
-        self.triplet = triplet
-
-        self.a3_plus = (
-            a3_plus
-            if a3_plus is not None
-            else a_plus * 0.5
-        )
-
-        self.a3_minus = (
-            a3_minus
-            if a3_minus is not None
-            else a_minus * 0.5
-        )
-
-        self.tau_pre_slow = tau_pre_slow
-        self.tau_post_slow = tau_post_slow
-
-
-
     def forward(
         self,
         weights,
         pre_spikes,
         post_spikes,
         homeostasis=None,
-        dt=1.0
+        dt=1.0,
     ):
         """
-        Calculate new weights.
+        Apply pair STDP.
 
-        Args:
+        weights:
+            [input, neurons]
 
-            weights:
-                [input, neurons]
+        pre_spikes:
+            [time, input]
 
-            pre_spikes:
-                [time, input]
-
-            post_spikes:
-                [time, neurons]
-
-        Returns:
-
-            updated weights
+        post_spikes:
+            [time, neurons]
         """
 
         device = weights.device
 
-
         n_pre = weights.shape[0]
         n_post = weights.shape[1]
 
+        time_steps = pre_spikes.shape[0]
 
-        delta_w = torch.zeros(
-            n_pre,
-            n_post,
-            device=device
-        )
-
+        # --------------------------------------------------
+        # Traces
+        # --------------------------------------------------
 
         pre_trace = torch.zeros(
             n_pre,
-            device=device
+            device=device,
         )
 
         post_trace = torch.zeros(
             n_post,
-            device=device
+            device=device,
         )
 
-
-        pre_slow = torch.zeros(
-            n_pre,
-            device=device
-        )
-
-        post_slow = torch.zeros(
-            n_post,
-            device=device
-        )
-
+        # --------------------------------------------------
+        # Trace decay
+        # --------------------------------------------------
 
         decay_pre = torch.exp(
             torch.tensor(
                 -dt / self.tau_plus,
-                device=device
+                device=device,
             )
         )
 
         decay_post = torch.exp(
             torch.tensor(
                 -dt / self.tau_minus,
-                device=device
+                device=device,
             )
         )
 
+        # --------------------------------------------------
+        # Weight update
+        # --------------------------------------------------
 
-        decay_pre_slow = torch.exp(
-            torch.tensor(
-                -dt / self.tau_pre_slow,
-                device=device
-            )
+        delta_w = torch.zeros(
+            n_pre,
+            n_post,
+            device=device,
         )
 
-        decay_post_slow = torch.exp(
-            torch.tensor(
-                -dt / self.tau_post_slow,
-                device=device
-            )
-        )
-
-
-        time_steps = pre_spikes.shape[0]
-
+        # ==================================================
+        # Time loop
+        # ==================================================
 
         for t in range(time_steps):
 
             pre_t = pre_spikes[t]
             post_t = post_spikes[t]
 
+            # --------------------------------------------------
+            # LTP
+            #
+            # pre spike happens after previous pre activity,
+            # and current post spike sees the pre trace.
+            # --------------------------------------------------
 
-            # update traces
+            active_post = post_t > 0
+
+            if active_post.any():
+
+                potentiation = (
+                    self.a_plus * pre_trace
+                )
+
+                for j in torch.where(active_post)[0]:
+
+                    delta_w[:, j] += potentiation
+
+            # --------------------------------------------------
+            # LTD
+            #
+            # current pre spike sees previous post activity.
+            # --------------------------------------------------
+
+            active_pre = pre_t > 0
+
+            if active_pre.any():
+
+                depression = (
+                    self.a_minus * post_trace
+                )
+
+                for i in torch.where(active_pre)[0]:
+
+                    delta_w[i, :] -= depression
+
+            # --------------------------------------------------
+            # Update traces
+            # --------------------------------------------------
 
             pre_trace = (
                 pre_trace * decay_pre
-                +
-                pre_t
+                + pre_t
             )
 
             post_trace = (
                 post_trace * decay_post
-                +
-                post_t
+                + post_t
             )
 
-
-            if self.triplet:
-
-                pre_slow = (
-                    pre_slow * decay_pre_slow
-                    +
-                    pre_t
-                )
-
-                post_slow = (
-                    post_slow * decay_post_slow
-                    +
-                    post_t
-                )
-
-
-            # potentiation
-
-            active_pre = pre_t > 0
-
-
-            if active_pre.any():
-
-                potentiation = (
-                    self.a_plus *
-                    post_trace
-                )
-
-
-                if self.triplet:
-
-                    potentiation += (
-                        self.a3_plus *
-                        post_slow
-                    )
-
-
-                for i in torch.where(active_pre)[0]:
-
-                    delta_w[i] += potentiation
-
-
-
-            # depression
-
-            active_post = post_t > 0
-
-
-            if active_post.any():
-
-                depression = (
-                    self.a_minus *
-                    pre_trace
-                )
-
-
-                if self.triplet:
-
-                    depression += (
-                        self.a3_minus *
-                        pre_slow
-                    )
-
-
-                for j in torch.where(active_post)[0]:
-
-                    delta_w[:, j] -= depression
-
-
-
-        # homeostatic scaling
+        # ==================================================
+        # Homeostasis
+        # ==================================================
 
         if homeostasis is not None:
 
             delta_w *= homeostasis
 
+        # --------------------------------------------------
+        # Normalize update
+        # --------------------------------------------------
+
+        total_spikes = (
+            pre_spikes.sum()
+            + post_spikes.sum()
+        )
+
+        if total_spikes > 0:
+
+            delta_w /= total_spikes
+
+        # --------------------------------------------------
+        # Debug
+        # --------------------------------------------------
 
         print(
             "delta_w:",
             delta_w.min().item(),
             delta_w.mean().item(),
-            delta_w.max().item()
+            delta_w.max().item(),
         )
 
-        total_spikes = (
-            pre_spikes.sum()
-            +
-            post_spikes.sum()
-        )
-
-        if total_spikes > 0:
-            delta_w = delta_w / time_steps
-            delta_w = delta_w / total_spikes
+        # ==================================================
+        # Update weights
+        # ==================================================
 
         weights = weights + delta_w
 
-
-        # biological limits
+        # ==================================================
+        # Biological bounds
+        # ==================================================
 
         weights = torch.clamp(
             weights,
             self.w_min,
-            self.w_max
+            self.w_max,
         )
-
 
         return weights

@@ -201,6 +201,12 @@ class Trainer:
             "rate2": [],
         }
 
+        best_test_accuracy = -1.0
+        best_epoch = 0
+        best_state_dict = None
+        best_labels = None
+        best_predictions = None
+
         for epoch in range(epochs):
 
             train = self.train_epoch()
@@ -216,27 +222,57 @@ class Trainer:
             history["rate1"].append(train["rate1"])
             history["rate2"].append(train["rate2"])
 
+            current_epoch = epoch + 1
+
+            # --------------------------------------------------
+            # Save best model
+            # --------------------------------------------------
+
+            if test["accuracy"] > best_test_accuracy:
+
+                best_test_accuracy = test["accuracy"]
+                best_epoch = current_epoch
+
+                best_state_dict = {
+                    key: value.detach().cpu().clone()
+                    for key, value in self.model.state_dict().items()
+                }
+
+                best_labels = test["labels"].clone()
+                best_predictions = test["predictions"].clone()
+
+                print(
+                    f"\n*** New best model: "
+                    f"epoch {best_epoch}, "
+                    f"test accuracy = "
+                    f"{100 * best_test_accuracy:.2f}% ***"
+                )
+
             print()
 
             print("=" * 60)
 
-            print(f"Epoch {epoch+1}/{epochs}")
+            print(f"Epoch {current_epoch}/{epochs}")
 
             print(f"Train Loss : {train['loss']:.4f}")
-
-            print(f"Train Acc  : {100*train['accuracy']:.2f}%")
+            print(f"Train Acc  : {100 * train['accuracy']:.2f}%")
 
             print(f"Test Loss  : {test['loss']:.4f}")
+            print(f"Test Acc   : {100 * test['accuracy']:.2f}%")
 
-            print(f"Test Acc   : {100*test['accuracy']:.2f}%")
-
-            print(f"Layer1 Rate: {100*train['rate1']:.2f}%")
-
-            print(f"Layer2 Rate: {100*train['rate2']:.2f}%")
+            print(f"Layer1 Rate: {100 * train['rate1']:.2f}%")
+            print(f"Layer2 Rate: {100 * train['rate2']:.2f}%")
 
             print("=" * 60)
 
-        return history
+        return {
+            "history": history,
+            "best_epoch": best_epoch,
+            "best_test_accuracy": best_test_accuracy,
+            "best_state_dict": best_state_dict,
+            "best_labels": best_labels,
+            "best_predictions": best_predictions,
+        }
 
     #################################################################
 

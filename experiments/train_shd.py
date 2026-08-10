@@ -4,7 +4,6 @@ Train Hierarchical SNN on SHD.
 
 import os
 import json
-from xml.parsers.expat import model
 
 from utils.experiment import (
     create_run_directory,
@@ -32,7 +31,7 @@ import torch.optim as optim
 from configs import Config
 from datasets import get_dataloaders
 from network.hierarchical_snn import HierarchicalSNN
-from training import Trainer, trainer
+from training import Trainer
 
 
 def main():
@@ -170,24 +169,62 @@ def main():
     # Training
     # --------------------------------------------------
 
-    history = trainer.fit(
+    fit_result = trainer.fit(
         cfg.epochs
     )
 
+    history = fit_result["history"]
+
+    best_epoch = fit_result["best_epoch"]
+    best_test_accuracy = fit_result["best_test_accuracy"]
+
+    best_labels = fit_result["best_labels"]
+    best_predictions = fit_result["best_predictions"]
+
+    best_state_dict = fit_result["best_state_dict"]
 
     history = {
         k: [float(x) for x in v]
         for k, v in history.items()
     }
 
+    # --------------------------------------------------
+    # Save best model
+    # --------------------------------------------------
 
+    torch.save(
+        best_state_dict,
+        f"{run_dir}/best_model.pt"
+    )
 
+    # --------------------------------------------------
+    # Save best predictions
+    # --------------------------------------------------
+
+    torch.save(
+        {
+            "labels": best_labels,
+            "predictions": best_predictions,
+            "epoch": best_epoch,
+            "accuracy": best_test_accuracy,
+        },
+        f"{run_dir}/best_predictions.pt",
+    )
+
+    print("\nBest model:")
+    print(f"Epoch    : {best_epoch}")
+    print(f"Accuracy : {100 * best_test_accuracy:.2f}%")
+
+    # --------------------------------------------------
+    # Load best model for visualization
+    # --------------------------------------------------
+
+    model.load_state_dict(best_state_dict)
+    model.eval()
 
     # --------------------------------------------------
     # Visualization
     # --------------------------------------------------
-
-    model.eval()
 
     spikes, labels = next(iter(test_loader))
 
@@ -237,21 +274,23 @@ def main():
     )
 
 
-    # яшчэ адзін праход па test dataset
-    test = trainer.evaluate()   
+    # --------------------------------------------------
+    # Confusion matrix for best model
+    # --------------------------------------------------
 
     plot_confusion_matrix(
-        labels=test["labels"],
-        predictions=test["predictions"],
-        save_path=f"{run_dir}/confusion_matrix_full.png",
+        labels=best_labels,
+        predictions=best_predictions,
+        save_path=f"{run_dir}/confusion_matrix_best.png",
         n_classes=cfg.n_classes,
     )
 
     plot_digit_confusion_matrix(
-        labels=test["labels"],
-        predictions=test["predictions"],
-        save_path=f"{run_dir}/confusion_matrix_digits.png",
-    )
+        labels=best_labels,
+        predictions=best_predictions,
+        save_path=f"{run_dir}/confusion_matrix_digits_best.png",
+    )  
+
 
     # --------------------------------------------------
     # Weight statistics
@@ -278,6 +317,11 @@ def main():
     summary = summarize_history(
         history
     )
+
+    summary["best_epoch"] = best_epoch
+    summary["best_test_accuracy"] = float(best_test_accuracy)
+    summary["best_model"] = "best_model.pt"
+    summary["best_predictions"] = "best_predictions.pt"
 
     save_json(
         summary,
