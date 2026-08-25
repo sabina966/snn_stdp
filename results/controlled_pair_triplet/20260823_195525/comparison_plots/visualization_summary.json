@@ -1,0 +1,20 @@
+{
+    "layer1": {
+        "pair_mean_delta": -0.0035016126930713654,
+        "triplet_mean_delta": 0.004800365772098303,
+        "difference": 0.008301978930830956,
+        "pair_increased_percent": 0.0,
+        "pair_decreased_percent": 100.0,
+        "triplet_increased_percent": 100.0,
+        "triplet_decreased_percent": 0.0
+    },
+    "layer2": {
+        "pair_mean_delta": -0.002090078080072999,
+        "triplet_mean_delta": 0.0008549856138415635,
+        "difference": 0.0029450636357069016,
+        "pair_increased_percent": 0.0,
+        "pair_decreased_percent": 100.0,
+        "triplet_increased_percent": 80.39,
+        "triplet_decreased_percent": 19.605
+    }
+}

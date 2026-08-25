@@ -1,0 +1,30 @@
+{
+    "layer1": {
+        "delta_min": -0.00011760927736759186,
+        "delta_mean": 5.857373253093101e-06,
+        "delta_max": 5.644559860229492e-05,
+        "delta_std": 3.719861342688091e-05,
+        "delta_median": 7.510185241699219e-06,
+        "positive_fraction": 0.7980928571428572,
+        "negative_fraction": 0.20186428571428572,
+        "near_zero_fraction": 4.2857142857142856e-05,
+        "positive_count": 111733,
+        "negative_count": 28261,
+        "near_zero_count": 6,
+        "total_weights": 140000
+    },
+    "layer2": {
+        "delta_min": -0.0001972094178199768,
+        "delta_mean": -0.00016213169146794826,
+        "delta_max": -3.224611282348633e-05,
+        "delta_std": 1.1531859854585491e-05,
+        "delta_median": -0.00016257166862487793,
+        "positive_fraction": 0.0,
+        "negative_fraction": 1.0,
+        "near_zero_fraction": 0.0,
+        "positive_count": 0,
+        "negative_count": 20000,
+        "near_zero_count": 0,
+        "total_weights": 20000
+    }
+}

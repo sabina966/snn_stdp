@@ -1,0 +1,189 @@
+{
+    "experiment": "controlled_pair_vs_triplet_stdp",
+    "seed": 42,
+    "device": "cpu",
+    "time_steps": 200,
+    "batch_size": 32,
+    "batch_limit": 5,
+    "architecture": {
+        "n_input": 700,
+        "n_hidden1": 200,
+        "n_hidden2": 100,
+        "n_classes": 20
+    },
+    "input_gain": 15.0,
+    "pair_parameters": {
+        "a_plus": 0.001,
+        "a_minus": 0.0012,
+        "tau_plus": 20.0,
+        "tau_minus": 20.0,
+        "w_min": 0.0,
+        "w_max": 0.5
+    },
+    "triplet_parameters": {
+        "a2_plus": 0.001,
+        "a2_minus": 0.0012,
+        "a3_plus": 0.001,
+        "a3_minus": 0.001,
+        "tau_plus": 20.0,
+        "tau_minus": 20.0,
+        "tau_x": 100.0,
+        "tau_y": 100.0,
+        "w_min": 0.0,
+        "w_max": 0.5
+    },
+    "neuron_parameters": {
+        "tau_m": 20.0,
+        "v_rest": -65.0,
+        "v_reset": -65.0,
+        "v_threshold": -50.0
+    },
+    "homeostasis_parameters": {
+        "target_rate": 0.05,
+        "tau_homeostasis": 5000.0,
+        "strength": 0.02
+    },
+    "initial_weights_identical": true,
+    "comparison": {
+        "layer1": {
+            "pair": {
+                "initial_mean": 0.2503253221511841,
+                "final_mean": 0.25019749999046326,
+                "delta_mean": -0.00012788240564987063,
+                "delta_std": 6.438066338887438e-05,
+                "delta_min": -0.0002465546131134033,
+                "delta_max": -1.1026859283447266e-06,
+                "delta_median": -0.00014284998178482056,
+                "increased_percent": 0.0,
+                "decreased_percent": 100.0,
+                "near_zero_percent": 0.0,
+                "initial_min": 1.1026859283447266e-06,
+                "initial_max": 0.49998965859413147,
+                "final_min": 0.0,
+                "final_max": 0.49994537234306335
+            },
+            "triplet": {
+                "initial_mean": 0.2503253221511841,
+                "final_mean": 0.25049665570259094,
+                "delta_mean": 0.00017130322521552444,
+                "delta_std": 0.00012443393643479794,
+                "delta_min": 7.510185241699219e-06,
+                "delta_max": 0.0003904998302459717,
+                "delta_median": 0.0002027377486228943,
+                "increased_percent": 100.0,
+                "decreased_percent": 0.0,
+                "near_zero_percent": 0.0,
+                "initial_min": 1.1026859283447266e-06,
+                "initial_max": 0.49998965859413147,
+                "final_min": 1.8127600924344733e-05,
+                "final_max": 0.5
+            },
+            "triplet_minus_pair_delta_mean": 0.00029918563086539507
+        },
+        "layer2": {
+            "pair": {
+                "initial_mean": 0.2513209581375122,
+                "final_mean": 0.25124502182006836,
+                "delta_mean": -7.593540067318827e-05,
+                "delta_std": 6.799836683057947e-06,
+                "delta_min": -9.840726852416992e-05,
+                "delta_max": -3.6388635635375977e-05,
+                "delta_median": -7.615797221660614e-05,
+                "increased_percent": 0.0,
+                "decreased_percent": 100.0,
+                "near_zero_percent": 0.0,
+                "initial_min": 3.6388635635375977e-05,
+                "initial_max": 0.4999352991580963,
+                "final_min": 0.0,
+                "final_max": 0.49986329674720764
+            },
+            "triplet": {
+                "initial_mean": 0.2513209581375122,
+                "final_mean": 0.25135862827301025,
+                "delta_mean": 3.763266067835502e-05,
+                "delta_std": 3.686529089463875e-05,
+                "delta_min": -9.796768426895142e-05,
+                "delta_max": 0.0001533031463623047,
+                "delta_median": 3.9186328649520874e-05,
+                "increased_percent": 84.82,
+                "decreased_percent": 15.17,
+                "near_zero_percent": 0.01,
+                "initial_min": 3.6388635635375977e-05,
+                "initial_max": 0.4999352991580963,
+                "final_min": 1.540997254778631e-05,
+                "final_max": 0.49997851252555847
+            },
+            "triplet_minus_pair_delta_mean": 0.00011356806135154329
+        }
+    },
+    "pair_firing_rates": [
+        {
+            "layer1": 0.21604765951633453,
+            "layer2": 0.22341719269752502
+        },
+        {
+            "layer1": 0.21601641178131104,
+            "layer2": 0.2233906239271164
+        },
+        {
+            "layer1": 0.21599531173706055,
+            "layer2": 0.22338281571865082
+        },
+        {
+            "layer1": 0.21597500145435333,
+            "layer2": 0.2233765572309494
+        },
+        {
+            "layer1": 0.21596406400203705,
+            "layer2": 0.22335156798362732
+        }
+    ],
+    "triplet_firing_rates": [
+        {
+            "layer1": 0.21604765951633453,
+            "layer2": 0.22341719269752502
+        },
+        {
+            "layer1": 0.21607500314712524,
+            "layer2": 0.22349686920642853
+        },
+        {
+            "layer1": 0.21610938012599945,
+            "layer2": 0.22352813184261322
+        },
+        {
+            "layer1": 0.21614843606948853,
+            "layer2": 0.22354061901569366
+        },
+        {
+            "layer1": 0.21617577970027924,
+            "layer2": 0.2235812544822693
+        }
+    ],
+    "triplet_diagnostics": {
+        "layer1": {
+            "ltp_mean": 6.849913916084915e-05,
+            "ltp_total": 9.589879989624023,
+            "ltd_mean": 3.5270859370939434e-05,
+            "ltd_total": 4.937920093536377,
+            "delta_mean": 3.322827978990972e-05,
+            "delta_total": 4.651959419250488,
+            "delta_min": 1.4545742033078568e-06,
+            "delta_max": 7.5520045356825e-05,
+            "increased_percent": 100.0,
+            "decreased_percent": 0.0
+        },
+        "layer2": {
+            "ltp_mean": 0.00036854486097581685,
+            "ltp_total": 7.37089729309082,
+            "ltd_mean": 0.00036123362951911986,
+            "ltd_total": 7.224672794342041,
+            "delta_mean": 7.311199624382425e-06,
+            "delta_total": 0.1462239921092987,
+            "delta_min": -1.906064608192537e-05,
+            "delta_max": 3.042114622076042e-05,
+            "increased_percent": 84.77500081062317,
+            "decreased_percent": 15.22500067949295
+        }
+    }
+}

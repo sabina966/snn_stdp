@@ -1,0 +1,17 @@
+{
+    "experiment": "triplet_stdp",
+    "device": "cpu",
+    "epochs": 1,
+    "time_steps": 200,
+    "batch_limit": 5,
+    "batches_available": 255,
+    "final_layer1_rate": 0.14739453792572021,
+    "final_layer2_rate": 0.11872968822717667,
+    "layer1_ltp_mean": 2.4043158191489056e-05,
+    "layer1_ltd_mean": 2.271362791361753e-05,
+    "layer1_net_mean": 1.3295300504978513e-06,
+    "layer2_ltp_mean": 7.574095798190683e-05,
+    "layer2_ltd_mean": 0.00011152449587825686,
+    "layer2_net_mean": -3.578354881028645e-05,
+    "checkpoint": "results\\triplet_stdp\\20260823_135830\\triplet_stdp_model.pt"
+}

@@ -66,7 +66,7 @@ class Config:
     w_max: float = 0.5
 
     # колькасць эпох папярэдняга STDP-навучання
-    stdp_pretrain_epochs: int = 5
+    stdp_pretrain_epochs: int = 1
 
     
     # -----------------------

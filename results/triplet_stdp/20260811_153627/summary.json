@@ -1,0 +1,9 @@
+{
+    "experiment": "triplet_stdp",
+    "device": "cpu",
+    "epochs": 1,
+    "time_steps": 200,
+    "final_layer1_rate": 0.13735446333885193,
+    "final_layer2_rate": 0.10978392511606216,
+    "checkpoint": "results\\triplet_stdp\\20260811_153627\\triplet_stdp_model.pt"
+}

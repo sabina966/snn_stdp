@@ -91,18 +91,6 @@ class LIFNeuron(nn.Module):
             self.surrogate_sigma,
         )
 
-        # DEBUG
-        if torch.rand(1) < 0.01:
-            print(
-                "V max:",
-                voltage.max().item(),
-                "V min:",
-                voltage.min().item(),
-                "spikes:",
-                spike.sum().item()
-            )
-
-
         voltage = torch.where(
             spike > 0,
             torch.full_like(voltage, self.v_reset),

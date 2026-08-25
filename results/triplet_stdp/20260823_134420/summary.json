@@ -1,0 +1,11 @@
+{
+    "experiment": "triplet_stdp",
+    "device": "cpu",
+    "epochs": 1,
+    "time_steps": 200,
+    "batches_available": 255,
+    "batch_limit": 5,
+    "final_layer1_rate": 0.13924218714237213,
+    "final_layer2_rate": 0.11417968571186066,
+    "checkpoint": "results\\triplet_stdp\\20260823_134420\\triplet_stdp_model.pt"
+}
